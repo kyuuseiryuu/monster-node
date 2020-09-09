@@ -1,0 +1,42 @@
+{
+  "private": true,
+  "name": "monster-node",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "KSR <KSR@local.lan>",
+  "license": "MIT",
+  "scripts": {
+    "dev": "nodemon src/app.ts --interceptor ./node_modules/.bin/tsnode",
+    "clean": "rimraf dist build",
+    "build:ts": "tsc -p . ",
+    "build:pkg": "pkg -t node14-linux,node14-macos --out-path build dist/app.js ",
+    "build:rename": "mv build/app-linux build/monster-node-linux && mv build/app-macos build/monster-node-macos",
+    "build": "yarn clean && yarn build:ts && yarn build:pkg && rimraf dist && yarn build:rename"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.14.0",
+    "@types/dotenv-flow": "^3.0.1",
+    "@types/koa": "^2.11.4",
+    "@types/koa-route": "^3.2.4",
+    "@types/koa-websocket": "^5.0.4",
+    "@types/koa2-cors": "^2.0.1",
+    "@types/node": "^14.6.4",
+    "@types/node-cron": "^2.0.3",
+    "@types/typescript": "^2.0.0",
+    "nodemon": "^2.0.4",
+    "pkg": "^4.4.9",
+    "rimraf": "^3.0.2",
+    "ts-node": "^9.0.0",
+    "typescript": "^4.0.2"
+  },
+  "dependencies": {
+    "axios": "^0.20.0",
+    "dotenv-flow": "^3.2.0",
+    "koa": "^2.13.0",
+    "koa-route": "^3.2.0",
+    "koa-websocket": "^6.0.0",
+    "koa2-cors": "^2.0.6",
+    "node-cron": "^2.0.3",
+    "systeminformation": "^4.27.3"
+  }
+}
