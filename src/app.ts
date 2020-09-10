@@ -72,6 +72,13 @@ const jobTask = cron.schedule(getCronExpresion(), async () => {
   }
 }, { scheduled: false });
 
+async function getSystemInfoData(): Promise<string> {
+  const info = await si.networkStats();
+  return JSON.stringify({
+    network: info[0],
+  });
+}
+
 async function storeNodeInfo() {
   console.log('Store Node Information.');
   console.log('Get IP...');
@@ -106,12 +113,11 @@ function loadAppMiddleware() {
   }));
 
   app.ws.use(Route.get('/stats',  async context => {
+    context.websocket.onopen = async () => {
+      context.websocket.send(await getSystemInfoData());
+    }
     const id = setInterval(async () => {
-      const info = await si.networkStats();
-      const data = {
-        network: info[0],
-      }
-      context.websocket.send(JSON.stringify(data));
+      context.websocket.send(await getSystemInfoData());
     }, 2000);
     context.websocket.onclose = () => {
       clearInterval(id);
