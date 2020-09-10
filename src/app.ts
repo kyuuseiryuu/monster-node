@@ -72,33 +72,6 @@ const jobTask = cron.schedule(getCronExpresion(), async () => {
   }
 }, { scheduled: false });
 
-app.use(cors({
-  origin: ctx => {
-    return ctx.request.header.origin;
-  },
-  credentials: true,
-}));
-
-app.use(Route.get('/', ctx => {
-  ctx.body = {
-    success: true,
-    data: store,
-  };
-}));
-
-app.ws.use(Route.get('/stats',  async context => {
-  const id = setInterval(async () => {
-    const info = await si.networkStats();
-    const data = {
-      network: info[0],
-    }
-    context.websocket.send(JSON.stringify(data));
-  }, 2000);
-  context.websocket.onclose = () => {
-    clearInterval(id);
-  }
-}));
-
 async function storeNodeInfo() {
   console.log('Store Node Information.');
   console.log('Get IP...');
@@ -117,10 +90,40 @@ async function storeNodeInfo() {
   console.log('Node ID:', store.nodeId);
 }
 
+function loadAppMiddleware() {
+  app.use(cors({
+    origin: ctx => {
+      return ctx.request.header.origin;
+    },
+    credentials: true,
+  }));
+
+  app.use(Route.get('/', ctx => {
+    ctx.body = {
+      success: true,
+      data: store,
+    };
+  }));
+
+  app.ws.use(Route.get('/stats',  async context => {
+    const id = setInterval(async () => {
+      const info = await si.networkStats();
+      const data = {
+        network: info[0],
+      }
+      context.websocket.send(JSON.stringify(data));
+    }, 2000);
+    context.websocket.onclose = () => {
+      clearInterval(id);
+    }
+  }));
+}
 async function bootstrap() {
-  app.listen(46572, async () => {
-    console.log('NodeServer Started!');
-    await storeNodeInfo();
+  const port = 46572;
+  await storeNodeInfo();
+  loadAppMiddleware();
+  app.listen(port, async () => {
+    console.log('NodeServer Started! Listen:', port);
     if (Boolean(process.env.JOB_SELF_RESOLVE)) {
       await initTask();
       jobTask.start();
