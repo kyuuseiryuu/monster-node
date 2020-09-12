@@ -8,10 +8,9 @@ import * as child_process from 'child_process';
 import axios from 'axios';
 import * as cron from "node-cron";
 import * as os from "os";
+import { request, getCronExpresion } from './utils';
 
 dotenv.config();
-
-const { request, getCronExpresion } = require('./utils');
 
 interface Store {
   ip: string;
@@ -90,11 +89,11 @@ async function storeNodeInfo() {
   const nodeRes = await request.post(`${domain}/api/node/register`, {
     ip: res.data.ip,
     name: process.env.NAME,
-    jobSelfResolve: Boolean(process.env.JOB_SELF_RESOLVE),
+    wsPort: process.env.WS_PORT || 46572,
+    wsPath: process.env.WS_PATH || 'stats',
   });
   store.nodeId = nodeRes.data.data._id;
-  console.log('Node Name:', nodeRes.data.data.name);
-  console.log('Node ID:', store.nodeId);
+  console.log('NodeInfo', nodeRes.data.data);
 }
 
 function loadAppMiddleware() {
@@ -112,28 +111,23 @@ function loadAppMiddleware() {
     };
   }));
 
-  app.ws.use(Route.get('/stats',  async context => {
-    context.websocket.onopen = async () => {
-      context.websocket.send(await getSystemInfoData());
-    }
+  app.ws.use(Route.get(`/${process.env.WS_PATH}` || '/stats',  async context => {
+    console.log('Client Connected!');
     const id = setInterval(async () => {
       context.websocket.send(await getSystemInfoData());
     }, 2000);
     context.websocket.onclose = () => {
+      console.log('Client Closed!');
       clearInterval(id);
     }
   }));
 }
 async function bootstrap() {
-  const port = 46572;
+  const port = process.env.WS_PORT || 46572;
   await storeNodeInfo();
-  loadAppMiddleware();
+  await loadAppMiddleware();
   app.listen(port, async () => {
-    console.log('NodeServer Started! Listen:', port);
-    if (Boolean(process.env.JOB_SELF_RESOLVE)) {
-      await initTask();
-      jobTask.start();
-    }
+    jobTask.start();
   });
 }
 

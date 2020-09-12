@@ -1,4 +1,6 @@
 import axios from "axios";
+import * as dotenv from "dotenv-flow";
+dotenv.config();
 
 export const request = axios.create({
   headers: {
