@@ -78,7 +78,7 @@ async function getSystemInfoData(): Promise<string> {
   });
 }
 
-async function storeNodeInfo() {
+async function storeNodeInfo(): Promise<boolean> {
   console.log('Store Node Information.');
   console.log('Get IP...');
   const res = await axios.get('https://api.ip.sb/jsonip')
@@ -92,8 +92,13 @@ async function storeNodeInfo() {
     wsPort: process.env.WS_PORT || 46572,
     wsPath: process.env.WS_PATH || 'stats',
   });
+  if (!nodeRes.data.success) {
+    console.log(nodeRes.data.message);
+    return false;
+  }
   store.nodeId = nodeRes.data.data._id;
   console.log('NodeInfo', nodeRes.data.data);
+  return true;
 }
 
 function loadAppMiddleware() {
@@ -124,7 +129,8 @@ function loadAppMiddleware() {
 }
 async function bootstrap() {
   const port = process.env.WS_PORT || 46572;
-  await storeNodeInfo();
+  const success = await storeNodeInfo();
+  if (!success) return;
   await loadAppMiddleware();
   app.listen(port, async () => {
     jobTask.start();
