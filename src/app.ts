@@ -86,18 +86,25 @@ async function storeNodeInfo(): Promise<boolean> {
   }
   console.log('IP: ', store.ip);
   const domain = process.env.DOMAIN;
+  const [
+    cpuData, memoryData, diskData,
+  ] = await Promise.all([
+    si.cpu(), si.mem(), si.diskLayout(),
+  ]);
+  const nodeInfo = { cpuData, memoryData, diskData };
   console.log('Register Node...');
   const nodeRes = await request.post(`${domain}/api/node/register`, {
     ip: store.ip,
     name: process.env.NAME,
     wsPort: process.env.WS_PORT || 46572,
     wsPath: process.env.WS_PATH || 'stats',
+    nodeInfo,
   });
   if (!nodeRes.data.success) {
     return false;
   }
   store.nodeId = nodeRes.data.data._id;
-  console.log('NodeInfo', nodeRes.data.data);
+  console.log('NodeInfo', JSON.stringify(nodeRes.data.data, null, 2));
   return true;
 }
 
