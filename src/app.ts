@@ -52,16 +52,12 @@ async function executeJob(jobId: string) {
   });
 }
 
-async function initTask() {
-  const api = `${process.env.DOMAIN}/api/job/node/${store.nodeId}/init`;
-  const res = await request.get(api);
-  console.log(`Init Job: ${res.data.success}`);
-}
-
 const jobTask = cron.schedule(getCronExpresion(), async () => {
   const api = `${process.env.DOMAIN}/api/job/node/${store.nodeId}/all`;
-  const jobs = await request.get(api);
-  if (jobs.data.data.length) {
+  const jobs = await request.get(api).catch(() => {
+    return { data: { success: false }};
+  });
+  if (jobs && jobs.data.success && jobs.data.data.length) {
     console.log(jobs.data.data);
     jobTask.stop();
     for (const jobId of jobs.data.data) {
@@ -81,19 +77,23 @@ async function getSystemInfoData(): Promise<string> {
 async function storeNodeInfo(): Promise<boolean> {
   console.log('Store Node Information.');
   console.log('Get IP...');
-  const res = await axios.get('https://api.ip.sb/jsonip')
-  store.ip = res.data.ip;
+  if (process.env.IP) {
+    console.log('LOCAL IP');
+    store.ip = process.env.IP;
+  } else {
+    const res = await axios.get('https://api.ip.sb/jsonip')
+    store.ip = res.data.ip;
+  }
   console.log('IP: ', store.ip);
   const domain = process.env.DOMAIN;
   console.log('Register Node...');
   const nodeRes = await request.post(`${domain}/api/node/register`, {
-    ip: res.data.ip,
+    ip: store.ip,
     name: process.env.NAME,
     wsPort: process.env.WS_PORT || 46572,
     wsPath: process.env.WS_PATH || 'stats',
   });
   if (!nodeRes.data.success) {
-    console.log(nodeRes.data.message);
     return false;
   }
   store.nodeId = nodeRes.data.data._id;

@@ -3,9 +3,24 @@ import * as dotenv from "dotenv-flow";
 dotenv.config();
 
 export const request = axios.create({
-  headers: {
-    Authorization: `Bearer ${process.env.TOKEN}`,
+  validateStatus: () => true,
+});
+
+request.interceptors.request.use(config => {
+  config.headers.Authorization = `Bearer ${process.env.TOKEN}`;
+  return config;
+}, error => {
+  console.log(error.message);
+  return { data: { success: false, }};
+});
+
+request.interceptors.response.use(response => {
+  if (response.data.message) {
+    console.log(response.data.message);
   }
+  return response;
+}, error => {
+  console.log(error.message);
 });
 
 export function getCronExpresion() {
