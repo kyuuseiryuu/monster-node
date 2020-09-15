@@ -15,52 +15,6 @@ import {w3cwebsocket} from "websocket";
 dotenv.config();
 const app = koaWS(new Koa());
 
-enum JobState {
-  INIT,
-  CANCELED,
-  EXECUTING,
-  SUCCESS,
-  FAILURE,
-}
-
-async function executeJob(jobId: string) {
-  if (!jobId) return;
-  const api = `${process.env.DOMAIN}/api/job/${jobId}`;
-  await request.put(api, {
-    state: JobState.EXECUTING,
-  });
-  child_process.exec(`curl -fsSL ${api} | bash -s`, {
-    cwd: os.homedir(),
-  }, async (e, stdout, stderr) => {
-    if (e) {
-      await request.put(api, {
-        error: e.message,
-        state: JobState.FAILURE,
-      });
-      return;
-    }
-    await request.put(api, {
-      state: JobState.SUCCESS,
-      stdout: stdout.toString(),
-      stderr: stderr.toString(),
-    });
-  });
-}
-
-const jobTask = cron.schedule(getCronExpresion(), async () => {
-  const api = `${process.env.DOMAIN}/api/job/node/${store.nodeId}/all`;
-  const jobs = await request.get(api).catch(() => {
-    return { data: { success: false }};
-  });
-  if (jobs && jobs.data.success && jobs.data.data.length) {
-    console.log(jobs.data.data);
-    jobTask.stop();
-    for (const jobId of jobs.data.data) {
-      await executeJob(jobId);
-    }
-    jobTask.start();
-  }
-}, { scheduled: false });
 
 async function getSystemInfoData(): Promise<string> {
   const info = await si.networkStats();
@@ -103,9 +57,6 @@ async function storeNodeInfo() {
   return true;
 }
 
-async function registerNode() {
-}
-
 function loadAppMiddleware() {
   app.use(cors({
     origin: ctx => {
@@ -145,23 +96,29 @@ async function wsConnect() {
     ws.send(payload);
     store.ws = ws;
   }
-  ws.onmessage = e => {
+  ws.onmessage = async e => {
     try {
       const payload = JSON.parse(e.data.toString());
-      console.log(payload);
       const funcName = payload.func;
-      const args = payload.args || [];
+      const args = payload.args;
       const fn = Func[funcName];
       console.log({ funcName, args, fn });
-      if (funcName && Func[funcName]) {
-        Func[funcName](args);
+      if (funcName && fn) {
+        await fn(args);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.log(e.message);
+    }
   }
-  ws.onclose = () => {
+  ws.onclose = async () => {
     console.log('server connection closed.');
     setTimeout(wsConnect, 1000);
   }
+}
+
+async function initJob() {
+  const api = `${process.env.DOMAIN}/api/jobs/node/${store.nodeId}/init`;
+  await axios.post(api).catch();
 }
 
 async function bootstrap() {
@@ -169,10 +126,9 @@ async function bootstrap() {
   const success = await storeNodeInfo();
   if (!success) return;
   await loadAppMiddleware();
+  await initJob();
   await wsConnect();
-  app.listen(port, async () => {
-    jobTask.start();
-  });
+  app.listen(port);
 }
 
 bootstrap().then();

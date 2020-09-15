@@ -1,6 +1,9 @@
 import axios from "axios";
 import * as dotenv from "dotenv-flow";
 import {w3cwebsocket} from "websocket";
+import {JobState} from "./types";
+import * as child_process from 'child_process';
+import * as os from "os";
 dotenv.config();
 
 export const request = axios.create({
@@ -39,10 +42,36 @@ interface Store {
   ws: w3cwebsocket;
 }
 
+export async function executeJob(jobId: string) {
+  if (!jobId) return;
+  const api = `${process.env.DOMAIN}/api/job/${jobId}`;
+  await request.put(api, {
+    state: JobState.EXECUTING,
+  });
+  child_process.exec(`curl -fsSL ${api} | bash -s`, {
+    cwd: os.homedir(),
+  }, async (e, stdout, stderr) => {
+    if (e) {
+      await request.put(api, {
+        error: e.message,
+        state: JobState.FAILURE,
+      });
+      return;
+    }
+    await request.put(api, {
+      state: JobState.SUCCESS,
+      stdout: stdout.toString(),
+      stderr: stderr.toString(),
+    });
+  });
+}
 export const store = {} as Store;
 
 export const Func = {
   exit() {
     process.exit(0);
   },
+  async exec(jobId) {
+    await executeJob(jobId);
+  }
 }
