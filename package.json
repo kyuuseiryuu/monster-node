@@ -11,7 +11,7 @@
     "build:ts": "tsc -p . ",
     "build:pkg": "pkg -t node14-linux,node14-macos --out-path build dist/app.js ",
     "build:rename": "mv build/app-linux build/monster-server-linux && mv build/app-macos build/monster-server-macos",
-    "build": "yarn clean && yarn build:ts && yarn build:pkg && rimraf dist && yarn build:rename && chmod +x -R ./build"
+    "build": "yarn clean && yarn build:ts && yarn build:pkg && rimraf dist && yarn build:rename && chmod +x ./build/*"
   },
   "devDependencies": {
     "@types/axios": "^0.14.0",
