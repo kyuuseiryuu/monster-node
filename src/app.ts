@@ -8,16 +8,11 @@ import * as child_process from 'child_process';
 import axios from 'axios';
 import * as cron from "node-cron";
 import * as os from "os";
-import { request, getCronExpresion } from './utils';
+import {request, getCronExpresion, store, Func} from './utils';
+import {WebSocketMessageType} from "./types";
+import {w3cwebsocket} from "websocket";
 
 dotenv.config();
-
-interface Store {
-  ip: string;
-  nodeId: string;
-}
-
-const store = {} as Store;
 const app = koaWS(new Koa());
 
 enum JobState {
@@ -74,7 +69,7 @@ async function getSystemInfoData(): Promise<string> {
   });
 }
 
-async function storeNodeInfo(): Promise<boolean> {
+async function storeNodeInfo() {
   console.log('Store Node Information.');
   console.log('Get IP...');
   if (process.env.IP) {
@@ -91,14 +86,14 @@ async function storeNodeInfo(): Promise<boolean> {
   ] = await Promise.all([
     si.cpu(), si.mem(), si.diskLayout(),
   ]);
-  const nodeInfo = { cpuData, memoryData, diskData };
+  const sysInfo = { cpuData, memoryData, diskData };
   console.log('Register Node...');
   const nodeRes = await request.post(`${domain}/api/node/register`, {
     ip: store.ip,
     name: process.env.NAME,
     wsPort: process.env.WS_PORT || 46572,
     wsPath: process.env.WS_PATH || 'stats',
-    nodeInfo,
+    sysInfo,
   });
   if (!nodeRes.data.success) {
     return false;
@@ -106,6 +101,9 @@ async function storeNodeInfo(): Promise<boolean> {
   store.nodeId = nodeRes.data.data._id;
   console.log('NodeInfo', JSON.stringify(nodeRes.data.data, null, 2));
   return true;
+}
+
+async function registerNode() {
 }
 
 function loadAppMiddleware() {
@@ -134,11 +132,44 @@ function loadAppMiddleware() {
     }
   }));
 }
+
+async function wsConnect() {
+  const domain = process.env.DOMAIN.replace('http', 'ws');
+  const ws = new w3cwebsocket(`${domain}/ws/${store.nodeId}/touch`);
+  ws.onopen = async () => {
+    console.log('connect to server');
+    const payload = JSON.stringify({
+      type: WebSocketMessageType.JOIN,
+      data: process.env.TOKEN,
+    });
+    ws.send(payload);
+    store.ws = ws;
+  }
+  ws.onmessage = e => {
+    try {
+      const payload = JSON.parse(e.data.toString());
+      console.log(payload);
+      const funcName = payload.func;
+      const args = payload.args || [];
+      const fn = Func[funcName];
+      console.log({ funcName, args, fn });
+      if (funcName && Func[funcName]) {
+        Func[funcName](args);
+      }
+    } catch (e) {}
+  }
+  ws.onclose = () => {
+    console.log('server connection closed.');
+    setTimeout(wsConnect, 1000);
+  }
+}
+
 async function bootstrap() {
   const port = process.env.WS_PORT || 46572;
   const success = await storeNodeInfo();
   if (!success) return;
   await loadAppMiddleware();
+  await wsConnect();
   app.listen(port, async () => {
     jobTask.start();
   });

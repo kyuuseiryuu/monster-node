@@ -1,5 +1,6 @@
 import axios from "axios";
 import * as dotenv from "dotenv-flow";
+import {w3cwebsocket} from "websocket";
 dotenv.config();
 
 export const request = axios.create({
@@ -32,3 +33,16 @@ export function getCronExpresion() {
   return `*/${n} * * * * *`;
 }
 
+interface Store {
+  ip: string;
+  nodeId: string;
+  ws: w3cwebsocket;
+}
+
+export const store = {} as Store;
+
+export const Func = {
+  exit() {
+    process.exit(0);
+  },
+}
