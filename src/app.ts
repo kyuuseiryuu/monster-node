@@ -4,11 +4,8 @@ import * as Route from 'koa-route';
 import * as koaWS from 'koa-websocket';
 import * as cors from 'koa2-cors';
 import * as si from 'systeminformation';
-import * as child_process from 'child_process';
 import axios from 'axios';
-import * as cron from "node-cron";
-import * as os from "os";
-import {request, getCronExpresion, store, Func} from './utils';
+import {request, store, Func} from './utils';
 import {WebSocketMessageType} from "./types";
 import {w3cwebsocket} from "websocket";
 
