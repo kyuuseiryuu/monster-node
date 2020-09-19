@@ -1,9 +1,8 @@
 import axios from "axios";
 import * as dotenv from "dotenv-flow";
-import {w3cwebsocket} from "websocket";
-import {JobState} from "./types";
-import * as child_process from 'child_process';
+import {JobMessage, JobState, NodeInfo, Store, WebSocketMessageType} from "./types";
 import * as os from "os";
+import {spawn} from "child_process";
 dotenv.config();
 
 export const request = axios.create({
@@ -36,33 +35,71 @@ export function getCronExpresion() {
   return `*/${n} * * * * *`;
 }
 
-interface Store {
-  ip: string;
-  nodeId: string;
-  ws: w3cwebsocket;
-}
-
 export async function executeJob(jobId: string) {
   if (!jobId) return;
   const api = `${process.env.DOMAIN}/api/job/${jobId}`;
+  let stdout = '', stderr = '', error = '';
+  const nodeInfo: NodeInfo = {
+    name: store.name,
+    ip: store.ip,
+    node: store.nodeId,
+    user: store.userId,
+    job: jobId,
+  };
   await request.put(api, {
     state: JobState.EXECUTING,
   });
-  child_process.exec(`curl -fsSL ${api} | bash -s`, {
+  const curl = spawn('curl', ['-fsSL', api], {
     cwd: os.homedir(),
-  }, async (e, stdout, stderr) => {
-    if (e) {
-      await request.put(api, {
-        error: e.message,
-        state: JobState.FAILURE,
-      });
-      return;
-    }
+  });
+  const sh = spawn('sh', ['-s'], {
+    cwd: os.homedir(),
+  });
+  curl.stdout.on("data", data => {
+    sh.stdin.write(data);
+    sh.stdin.end();
+  });
+  curl.on("error", (e) => {
+    error += e;
+  });
+  sh.on("message", (message, sendHandle) => {
+    console.log(message, sendHandle);
+  });
+  sh.stdout.on("data", (data = '') => {
+    stdout += data.toString();
+    if (!store.ws) return;
+    store.ws.send(JSON.stringify({
+      nodeInfo,
+      type: WebSocketMessageType.STDOUT,
+      event: 'stdout',
+      data: data.toString(),
+    } as JobMessage));
+  });
+  sh.stderr.on("data", (data = '') => {
+    stderr += data.toString();
+    if (!store.ws) return;
+    store.ws.send(JSON.stringify({
+      nodeInfo,
+      type: WebSocketMessageType.STDOUT,
+      event: 'stderr',
+      data: data.toString(),
+    } as JobMessage));
+  });
+  sh.on("error", e => {
+    error += e.message;
+  });
+  sh.on("close", async () => {
+    const success = !error;
     await request.put(api, {
-      state: JobState.SUCCESS,
-      stdout: stdout.toString(),
-      stderr: stderr.toString(),
+      state: success ? JobState.SUCCESS : JobState.FAILURE,
+      stdout, stderr, error,
     });
+    if (!store.ws) return;
+    store.ws.send(JSON.stringify({
+      nodeInfo,
+      type: WebSocketMessageType.STDOUT,
+      event: 'close',
+    } as JobMessage));
   });
 }
 export const store = {} as Store;

@@ -49,7 +49,9 @@ async function storeNodeInfo() {
   if (!nodeRes.data.success) {
     return false;
   }
+  store.name = nodeRes.data.data.name;
   store.nodeId = nodeRes.data.data._id;
+  store.userId = nodeRes.data.data.user;
   console.log('NodeInfo', JSON.stringify(nodeRes.data.data, null, 2));
   return true;
 }
