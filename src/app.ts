@@ -5,7 +5,7 @@ import * as koaWS from 'koa-websocket';
 import * as cors from 'koa2-cors';
 import * as si from 'systeminformation';
 import axios from 'axios';
-import {request, store, Func} from './utils';
+import {request, store, Func, uploadNetworkJob} from './utils';
 import {WebSocketMessageType} from "./types";
 import {w3cwebsocket} from "websocket";
 
@@ -46,7 +46,7 @@ async function storeNodeInfo() {
     wsPath: process.env.WS_PATH || 'stats',
     sysInfo,
   });
-  if (!nodeRes.data.success) {
+  if (!nodeRes || !nodeRes.data.success) {
     return false;
   }
   store.name = nodeRes.data.data.name;
@@ -127,6 +127,7 @@ async function bootstrap() {
   await loadAppMiddleware();
   await initJob();
   await wsConnect();
+  uploadNetworkJob.start();
   app.listen(port);
 }
 

@@ -11,7 +11,7 @@ export interface Store {
 
 export enum WebSocketMessageType {
   JOIN,
-  UPDATE,
+  UPDATE_NETWORK_STATUS,
   STDOUT,
 }
 

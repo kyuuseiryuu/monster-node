@@ -3,6 +3,9 @@ import * as dotenv from "dotenv-flow";
 import {JobMessage, JobState, NodeInfo, Store, WebSocketMessageType} from "./types";
 import * as os from "os";
 import {spawn} from "child_process";
+import * as cron from 'node-cron';
+import {w3cwebsocket} from "websocket";
+import * as si from 'systeminformation';
 
 dotenv.config();
 
@@ -28,7 +31,7 @@ request.interceptors.response.use(response => {
 });
 
 export function getCronExpresion() {
-  let n = process.env.JOB_CHECK_INTERVAL || 5;
+  let n = process.env.NETWORK_UPLOAD_INTERVAL || 5;
   if (isNaN(Number(n)) || Number(n) < 1) {
     n = 5;
   }
@@ -110,6 +113,7 @@ export async function executeJob(jobId: string) {
     } as JobMessage));
   });
 }
+
 export const store = {} as Store;
 
 export const Func = {
@@ -120,3 +124,12 @@ export const Func = {
     await executeJob(jobId);
   }
 }
+
+export const uploadNetworkJob = cron.schedule(getCronExpresion(), async () => {
+  if (!store.ws || store.ws.readyState === w3cwebsocket.CLOSED) return;
+  store.ws.send(JSON.stringify({
+    type: WebSocketMessageType.UPDATE_NETWORK_STATUS,
+    node: store.nodeId,
+    data: (await si.networkStats())[0],
+  }));
+}, { scheduled: false });
