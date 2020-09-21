@@ -3,6 +3,7 @@ import * as dotenv from "dotenv-flow";
 import {JobMessage, JobState, NodeInfo, Store, WebSocketMessageType} from "./types";
 import * as os from "os";
 import {spawn} from "child_process";
+
 dotenv.config();
 
 export const request = axios.create({
@@ -55,9 +56,16 @@ export async function executeJob(jobId: string) {
   const sh = spawn('sh', ['-s'], {
     cwd: os.homedir(),
   });
-  curl.stdout.on("data", data => {
+  curl.stdout.on("data", async data => {
     sh.stdin.write(data);
     sh.stdin.end();
+    if (!store.ws || store.ws.readyState === store.ws.CLOSED) return;
+    store.ws.send(JSON.stringify({
+      nodeInfo,
+      type: WebSocketMessageType.STDOUT,
+      event: 'start',
+      data: sh.pid,
+    } as JobMessage));
   });
   curl.on("error", (e) => {
     error += e;

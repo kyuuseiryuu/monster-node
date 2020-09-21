@@ -35,5 +35,5 @@ export interface JobMessage {
   nodeInfo: NodeInfo;
   type: WebSocketMessageType;
   event: string;
-  data?: string;
+  data?: string | number;
 }
