@@ -1,15 +1,12 @@
 import * as dotenv from 'dotenv-flow';
 import * as si from 'systeminformation';
-import {request, store, Func, uploadNetworkJob, getRandomStr} from './utils';
+import {request, store, Func, uploadNetworkJob} from './utils';
 import {WebSocketMessageType} from "./types";
 import {w3cwebsocket} from "websocket";
 
 dotenv.config();
 
 const port = process.env.WS_PORT || 46572;
-//
-// const username = getRandomStr();
-// const password = getRandomStr();
 
 async function storeNodeInfo() {
   console.log('Store Node Information.');
