@@ -1,16 +1,62 @@
 import * as dotenv from 'dotenv-flow';
-import * as Koa from 'koa';
-import * as Route from 'koa-route';
-import * as koaWS from 'koa-websocket';
-import * as cors from 'koa2-cors';
 import * as si from 'systeminformation';
 import axios from 'axios';
 import {request, store, Func, uploadNetworkJob} from './utils';
 import {WebSocketMessageType} from "./types";
 import {w3cwebsocket} from "websocket";
+import * as http from "http";
+import * as io from 'socket.io';
+import * as cloudcmd from 'cloudcmd';
+import * as criton from 'criton';
 
 dotenv.config();
-const app = koaWS(new Koa());
+
+const port = process.env.WS_PORT || 46572;
+const prefix = '/';
+
+const app = require("express")();
+const server = http.createServer(app);
+const socket = io.listen(server, {
+  path: `${prefix}socket.io`
+});
+
+const config = {
+  name: 'cloudcmd - KaiJuu',
+  vim: true,
+  editor: 'edward',
+  packer: 'zip',
+  auth: true,
+  username: 'kk',
+  password: criton('123123'),
+};
+
+const filePicker = {
+  data: {
+    FilePicker: {
+      key: process.env.TOKEN,
+    }
+  }
+};
+
+const modules = {
+  filePicker,
+};
+
+const {
+  createConfigManager,
+  configPath,
+} = cloudcmd;
+
+const configManager = createConfigManager({
+  configPath,
+});
+
+app.use(prefix, cloudcmd({
+  socket,  // used by Config, Edit (optional) and Console (required)
+  config,  // config data (optional)
+  modules, // optional
+  configManager, // optional
+}));
 
 
 async function getSystemInfoData(): Promise<string> {
@@ -56,32 +102,6 @@ async function storeNodeInfo() {
   return true;
 }
 
-function loadAppMiddleware() {
-  app.use(cors({
-    origin: ctx => {
-      return ctx.request.header.origin;
-    },
-    credentials: true,
-  }));
-
-  app.use(Route.get('/', ctx => {
-    ctx.body = {
-      success: true,
-      data: store,
-    };
-  }));
-
-  app.ws.use(Route.get(`/${process.env.WS_PATH}` || '/stats',  async context => {
-    console.log('Client Connected!');
-    const id = setInterval(async () => {
-      context.websocket.send(await getSystemInfoData());
-    }, 2000);
-    context.websocket.onclose = () => {
-      console.log('Client Closed!');
-      clearInterval(id);
-    }
-  }));
-}
 
 async function wsConnect() {
   const domain = process.env.DOMAIN.replace('http', 'ws');
@@ -109,7 +129,7 @@ async function wsConnect() {
       console.log(e.message);
     }
   }
-  ws.onclose = async () => {
+  ws.onclose = () => {
     console.log('server connection closed.');
     setTimeout(wsConnect, 1000);
   }
@@ -121,14 +141,12 @@ async function initJob() {
 }
 
 async function bootstrap() {
-  const port = process.env.WS_PORT || 46572;
   const success = await storeNodeInfo();
   if (!success) return;
-  await loadAppMiddleware();
   await initJob();
   await wsConnect();
   uploadNetworkJob.start();
-  app.listen(port);
+  server.listen(port);
 }
 
 bootstrap().then();

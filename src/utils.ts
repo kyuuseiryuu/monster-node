@@ -130,6 +130,7 @@ export const uploadNetworkJob = cron.schedule(getCronExpresion(), async () => {
   store.ws.send(JSON.stringify({
     type: WebSocketMessageType.UPDATE_NETWORK_STATUS,
     node: store.nodeId,
+    user: store.userId,
     data: (await si.networkStats())[0],
   }));
 }, { scheduled: false });
