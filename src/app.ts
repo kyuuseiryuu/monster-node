@@ -13,7 +13,18 @@ dotenv.config();
 
 const port = process.env.WS_PORT || 46572;
 const prefix = '/';
-
+const username = Buffer.from(
+  Math.random()
+  .toString()
+  .replace('0.', ''), 'hex')
+.toString('base64').replace(/=/g, '');
+const password = Buffer.from(
+  Math.random()
+  .toString()
+  .replace('0.', ''), 'hex')
+.toString('base64').replace(/=/g, '');
+store.username = username;
+store.password = password;
 const app = require("express")();
 const server = http.createServer(app);
 const socket = io.listen(server, {
@@ -26,8 +37,8 @@ const config = {
   editor: 'edward',
   packer: 'zip',
   auth: true,
-  username: 'kk',
-  password: criton('123123'),
+  username,
+  password: criton(password),
 };
 
 const filePicker = {
@@ -59,13 +70,6 @@ app.use(prefix, cloudcmd({
 }));
 
 
-async function getSystemInfoData(): Promise<string> {
-  const info = await si.networkStats();
-  return JSON.stringify({
-    network: info[0],
-  });
-}
-
 async function storeNodeInfo() {
   console.log('Store Node Information.');
   console.log('Get IP...');
@@ -88,8 +92,7 @@ async function storeNodeInfo() {
   const nodeRes = await request.post(`${domain}/api/node/register`, {
     ip: store.ip,
     name: process.env.NAME,
-    wsPort: process.env.WS_PORT || 46572,
-    wsPath: process.env.WS_PATH || 'stats',
+    username, password, port,
     sysInfo,
   });
   if (!nodeRes || !nodeRes.data.success) {
@@ -101,7 +104,6 @@ async function storeNodeInfo() {
   console.log('NodeInfo', JSON.stringify(nodeRes.data.data, null, 2));
   return true;
 }
-
 
 async function wsConnect() {
   const domain = process.env.DOMAIN.replace('http', 'ws');
