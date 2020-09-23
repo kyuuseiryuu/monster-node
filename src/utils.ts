@@ -9,6 +9,14 @@ import * as si from 'systeminformation';
 
 dotenv.config();
 
+export function getRandomStr() {
+  return Buffer.from(
+    Math.random()
+    .toString()
+    .replace('0.', ''), 'hex')
+  .toString('base64').replace(/=/g, '');
+}
+
 export const request = axios.create({
   validateStatus: () => true,
 });
@@ -31,9 +39,9 @@ request.interceptors.response.use(response => {
 });
 
 export function getCronExpresion() {
-  let n = process.env.NETWORK_UPLOAD_INTERVAL || 5;
+  let n = process.env.NETWORK_UPLOAD_INTERVAL || 1;
   if (isNaN(Number(n)) || Number(n) < 1) {
-    n = 5;
+    n = 1;
   }
   console.log(`CRON: ${n}s`);
   return `*/${n} * * * * *`;
