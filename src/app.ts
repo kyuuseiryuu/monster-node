@@ -6,8 +6,6 @@ import {w3cwebsocket} from "websocket";
 
 dotenv.config();
 
-const port = process.env.WS_PORT || 46572;
-
 async function storeNodeInfo() {
   console.log('Store Node Information.');
   console.log('Get IP...');
@@ -30,7 +28,6 @@ async function storeNodeInfo() {
   const nodeRes = await request.post(`${domain}/api/node/register`, {
     ip: store.ip,
     name: process.env.NAME,
-    port,
     sysInfo,
   });
   if (!nodeRes || !nodeRes.data.success) {

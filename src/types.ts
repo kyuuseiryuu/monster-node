@@ -6,8 +6,6 @@ export interface Store {
   nodeId: string;
   userId: string;
   ws: w3cwebsocket;
-  username: string;
-  password: string;
 }
 
 

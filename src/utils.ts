@@ -9,14 +9,6 @@ import * as si from 'systeminformation';
 
 dotenv.config();
 
-export function getRandomStr() {
-  return Buffer.from(
-    Math.random()
-    .toString()
-    .replace('0.', ''), 'hex')
-  .toString('base64').replace(/=/g, '');
-}
-
 export const request = axios.create({
   validateStatus: () => true,
 });
