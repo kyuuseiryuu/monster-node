@@ -10,7 +10,7 @@
     "clean": "rimraf dist build",
     "build:ts": "tsc -p . ",
     "build:pkg": "pkg -t node14-linux,node14-macos --out-path build dist/app.js ",
-    "build:rename": "mv build/app-linux build/monster-server-linux && mv build/app-macos build/monster-server-macos",
+    "build:rename": "mv build/app-linux build/monster-node-linux && mv build/app-macos build/monster-node-macos",
     "build": "yarn clean && yarn build:ts && yarn build:pkg && rimraf dist && yarn build:rename && chmod +x ./build/*"
   },
   "devDependencies": {
