@@ -134,3 +134,32 @@ export const uploadNetworkJob = cron.schedule(getCronExpresion(), async () => {
     data: (await si.networkStats())[0],
   }));
 }, { scheduled: false });
+
+export const uploadSysInfoJob = cron.schedule(getCronExpresion(), async () => {
+  if (!store.ws || store.ws.readyState === w3cwebsocket.CLOSED) return;
+  const [
+    networkStats,
+    cpu,
+    mem,
+    disksIO,
+    fsStats,
+  ] = await Promise.all([
+    si.networkStats(),
+    si.cpu(),
+    si.mem(),
+    si.disksIO(),
+    si.fsStats(),
+  ])
+  store.ws.send(JSON.stringify({
+    type: WebSocketMessageType.UPDATE_SYS_INFO,
+    node: store.nodeId,
+    user: store.userId,
+    data: {
+      networkStats,
+      cpu,
+      mem,
+      disksIO,
+      fsStats,
+    },
+  }));
+}, { scheduled: false });

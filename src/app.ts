@@ -1,6 +1,6 @@
 import * as dotenv from 'dotenv-flow';
 import * as si from 'systeminformation';
-import {request, store, Func, uploadNetworkJob} from './utils';
+import {request, store, Func, uploadNetworkJob, uploadSysInfoJob} from './utils';
 import {WebSocketMessageType} from "./types";
 import {w3cwebsocket} from "websocket";
 
@@ -44,12 +44,14 @@ async function wsConnect() {
   const domain = process.env.DOMAIN.replace('http', 'ws');
   const ws = new w3cwebsocket(`${domain}/ws/${store.nodeId}/touch`);
   ws.onopen = async () => {
-    console.log('connect to server');
     const payload = JSON.stringify({
       type: WebSocketMessageType.JOIN,
       data: process.env.TOKEN,
     });
-    ws.send(payload);
+    setTimeout(() => {
+      ws.send(payload);
+      console.log('connect to server', payload);
+    }, 1000);
     store.ws = ws;
   }
   ws.onmessage = async e => {
@@ -77,6 +79,7 @@ async function bootstrap() {
   if (!success) return;
   await wsConnect();
   uploadNetworkJob.start();
+  uploadSysInfoJob.start();
 }
 
 bootstrap().then();

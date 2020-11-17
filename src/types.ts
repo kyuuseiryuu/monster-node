@@ -10,9 +10,10 @@ export interface Store {
 
 
 export enum WebSocketMessageType {
-  JOIN,
-  UPDATE_NETWORK_STATUS,
-  STDOUT,
+  JOIN = "JOIN",
+  STDOUT = "STDOUT",
+  UPDATE_NETWORK_STATUS = "UPDATE_NETWORK_STATUS",
+  UPDATE_SYS_INFO = "UPDATE_SYS_INFO",
 }
 
 export enum JobState {
