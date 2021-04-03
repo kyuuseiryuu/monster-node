@@ -4,6 +4,6 @@ yarn-error.log
 /build
 /static
 /dist
-.env.*
+.env*
 .idea
 .DS_Store
