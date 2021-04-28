@@ -1,10 +1,14 @@
 import * as dotenv from 'dotenv-flow';
 import * as si from 'systeminformation';
-import {request, store, Func, uploadNetworkJob, uploadSysInfoJob} from './utils';
+import {request, store, uploadSysInfoJob, executeJob, uploadRunningProcess} from './utils';
 import {WebSocketMessageType} from "./types";
 import {w3cwebsocket} from "websocket";
+import Invoker from "@kyuuseiryuu/ws-invoker";
 
 dotenv.config();
+
+let shouldReconnect = true;
+let retryTimes = 0;
 
 async function storeNodeInfo() {
   console.log('Store Node Information.');
@@ -43,34 +47,41 @@ async function storeNodeInfo() {
 async function wsConnect() {
   const domain = process.env.DOMAIN.replace('http', 'ws');
   const ws = new w3cwebsocket(`${domain}/ws/${store.nodeId}/touch`);
-  ws.onopen = async () => {
-    const payload = JSON.stringify({
-      type: WebSocketMessageType.JOIN,
-      data: process.env.TOKEN,
-    });
+  const invoker = new Invoker(ws as any);
+  invoker.implement('exit', () => {
+    process.exit(0);
+  });
+  invoker.implement<string, any>('exec', async jobId => {
+    await executeJob(jobId);
+  });
+  invoker.implement('kill', async pid => {
+    return process.kill(pid);
+  });
+  store.ws = ws;
+  store.invoker = invoker;
+  ws.onopen = () => {
     setTimeout(() => {
-      ws.send(payload);
-      console.log('connect to server', payload);
+      invoker.invoke<{ data: string }, boolean>(
+        WebSocketMessageType.JOIN,
+        { data: process.env.TOKEN },
+        (authorized) => {
+          console.log('Connect to server', authorized);
+          if (!authorized) {
+            shouldReconnect = false;
+            ws.close();
+          }
+          retryTimes = 0;
+        });
     }, 1000);
-    store.ws = ws;
-  }
-  ws.onmessage = async e => {
-    try {
-      const payload = JSON.parse(e.data.toString());
-      const funcName = payload.func;
-      const args = payload.args;
-      const fn = Func[funcName];
-      console.log({ funcName, args, fn });
-      if (funcName && fn) {
-        await fn(args);
-      }
-    } catch (e) {
-      console.log(e.message);
-    }
   }
   ws.onclose = () => {
-    console.log('server connection closed.');
-    setTimeout(wsConnect, 1000);
+    console.log('Server connection closed.');
+    if (shouldReconnect) {
+      console.log('Try to reconnect...', retryTimes++);
+      if (retryTimes <= Number(process.env.MAX_RETRY) || 1000) {
+        setTimeout(wsConnect, 1000);
+      }
+    }
   }
 }
 
@@ -78,8 +89,8 @@ async function bootstrap() {
   const success = await storeNodeInfo();
   if (!success) return;
   await wsConnect();
-  uploadNetworkJob.start();
   uploadSysInfoJob.start();
+  uploadRunningProcess.start();
 }
 
 bootstrap().then();

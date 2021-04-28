@@ -1,4 +1,5 @@
 import {w3cwebsocket} from "websocket";
+import Invoker from "@kyuuseiryuu/ws-invoker";
 
 export interface Store {
   name: string;
@@ -6,6 +7,7 @@ export interface Store {
   nodeId: string;
   userId: string;
   ws: w3cwebsocket;
+  invoker: Invoker;
 }
 
 
@@ -14,6 +16,8 @@ export enum WebSocketMessageType {
   STDOUT = "STDOUT",
   UPDATE_NETWORK_STATUS = "UPDATE_NETWORK_STATUS",
   UPDATE_SYS_INFO = "UPDATE_SYS_INFO",
+  PROCESS = "PROCESS",
+  JOB_DONE = "JOB_DONE",
 }
 
 export enum JobState {

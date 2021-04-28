@@ -1,6 +1,6 @@
 import axios from "axios";
 import * as dotenv from "dotenv-flow";
-import {JobMessage, JobState, NodeInfo, Store, WebSocketMessageType} from "./types";
+import {JobState, NodeInfo, Store, WebSocketMessageType} from "./types";
 import * as os from "os";
 import {spawn} from "child_process";
 import * as cron from 'node-cron';
@@ -30,10 +30,10 @@ request.interceptors.response.use(response => {
   console.log(error.message);
 });
 
-export function getCronExpresion() {
-  let n = process.env.NETWORK_UPLOAD_INTERVAL || 1;
+export function getCronExpresion(defaultInterval: number = 10) {
+  let n = process.env.NETWORK_UPLOAD_INTERVAL || defaultInterval;
   if (isNaN(Number(n)) || Number(n) < 1) {
-    n = 1;
+    n = defaultInterval;
   }
   console.log(`CRON: ${n}s`);
   return `*/${n} * * * * *`;
@@ -62,13 +62,6 @@ export async function executeJob(jobId: string) {
   curl.stdout.on("data", async data => {
     sh.stdin.write(data);
     sh.stdin.end();
-    if (!store.ws || store.ws.readyState === store.ws.CLOSED) return;
-    store.ws.send(JSON.stringify({
-      nodeInfo,
-      type: WebSocketMessageType.STDOUT,
-      event: 'start',
-      data: sh.pid,
-    } as JobMessage));
   });
   curl.on("error", (e) => {
     error += e;
@@ -78,23 +71,9 @@ export async function executeJob(jobId: string) {
   });
   sh.stdout.on("data", (data = '') => {
     stdout += data.toString();
-    if (!store.ws) return;
-    store.ws.send(JSON.stringify({
-      nodeInfo,
-      type: WebSocketMessageType.STDOUT,
-      event: 'stdout',
-      data: data.toString(),
-    } as JobMessage));
   });
   sh.stderr.on("data", (data = '') => {
     stderr += data.toString();
-    if (!store.ws) return;
-    store.ws.send(JSON.stringify({
-      nodeInfo,
-      type: WebSocketMessageType.STDOUT,
-      event: 'stderr',
-      data: data.toString(),
-    } as JobMessage));
   });
   sh.on("error", e => {
     error += e.message;
@@ -105,34 +84,23 @@ export async function executeJob(jobId: string) {
       state: success ? JobState.SUCCESS : JobState.FAILURE,
       stdout, stderr, error,
     });
-    if (!store.ws) return;
-    store.ws.send(JSON.stringify({
-      nodeInfo,
-      type: WebSocketMessageType.STDOUT,
-      event: 'close',
-    } as JobMessage));
+    store.invoker.invoke(WebSocketMessageType.JOB_DONE, {
+      node: store.nodeId,
+      user: store.userId,
+    });
   });
 }
 
 export const store = {} as Store;
 
-export const Func = {
-  exit() {
-    process.exit(0);
-  },
-  async exec(jobId) {
-    await executeJob(jobId);
-  }
-}
-
-export const uploadNetworkJob = cron.schedule(getCronExpresion(), async () => {
+export const uploadRunningProcess = cron.schedule(getCronExpresion(1), async () => {
   if (!store.ws || store.ws.readyState === w3cwebsocket.CLOSED) return;
-  store.ws.send(JSON.stringify({
-    type: WebSocketMessageType.UPDATE_NETWORK_STATUS,
+  const processes = await si.processes();
+  store.invoker.invoke(WebSocketMessageType.PROCESS, {
     node: store.nodeId,
     user: store.userId,
-    data: (await si.networkStats())[0],
-  }));
+    data: JSON.stringify(processes),
+  });
 }, { scheduled: false });
 
 export const uploadSysInfoJob = cron.schedule(getCronExpresion(), async () => {
@@ -150,16 +118,16 @@ export const uploadSysInfoJob = cron.schedule(getCronExpresion(), async () => {
     si.disksIO(),
     si.fsStats(),
   ])
-  store.ws.send(JSON.stringify({
-    type: WebSocketMessageType.UPDATE_SYS_INFO,
+  const data = {
     node: store.nodeId,
     user: store.userId,
-    data: {
-      networkStats,
+    data: JSON.stringify({
+      networkStats: networkStats,
       cpu,
       mem,
       disksIO,
       fsStats,
-    },
-  }));
+    }),
+  }
+  store.invoker.invoke(WebSocketMessageType.UPDATE_SYS_INFO, data);
 }, { scheduled: false });
