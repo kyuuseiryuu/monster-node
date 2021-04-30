@@ -80,6 +80,8 @@ async function wsConnect() {
       console.log('Try to reconnect...', retryTimes++);
       if (retryTimes <= Number(process.env.MAX_RETRY) || 1000) {
         setTimeout(wsConnect, 1000);
+      } else {
+        process.exit();
       }
     }
   }
