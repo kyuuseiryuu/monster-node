@@ -57,6 +57,18 @@ async function wsConnect() {
   invoker.implement('kill', async pid => {
     return process.kill(pid);
   });
+  invoker.implement('stopSysInfoReport', () => {
+    uploadSysInfoJob.stop();
+  });
+  invoker.implement('startSysInfoReport', () => {
+    uploadSysInfoJob.start();
+  });
+  invoker.implement('startProcessReport', () => {
+    uploadRunningProcess.start();
+  });
+  invoker.implement('stopProcessReport', () => {
+    uploadRunningProcess.stop();
+  });
   store.ws = ws;
   store.invoker = invoker;
   ws.onopen = () => {
@@ -91,8 +103,6 @@ async function bootstrap() {
   const success = await storeNodeInfo();
   if (!success) return;
   await wsConnect();
-  uploadSysInfoJob.start();
-  uploadRunningProcess.start();
 }
 
 bootstrap().then();
