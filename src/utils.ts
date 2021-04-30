@@ -1,6 +1,6 @@
 import axios from "axios";
 import * as dotenv from "dotenv-flow";
-import {JobState, NodeInfo, Store, WebSocketMessageType} from "./types";
+import {JobState, Store, WebSocketMessageType} from "./types";
 import * as os from "os";
 import {spawn} from "child_process";
 import * as cron from 'node-cron';
@@ -43,13 +43,6 @@ export async function executeJob(jobId: string) {
   if (!jobId) return;
   const api = `${process.env.DOMAIN}/api/job/${jobId}`;
   let stdout = '', stderr = '', error = '';
-  const nodeInfo: NodeInfo = {
-    name: store.name,
-    ip: store.ip,
-    node: store.nodeId,
-    user: store.userId,
-    job: jobId,
-  };
   await request.put(api, {
     state: JobState.EXECUTING,
   });
@@ -85,8 +78,10 @@ export async function executeJob(jobId: string) {
       stdout, stderr, error,
     });
     store.invoker.invoke(WebSocketMessageType.JOB_DONE, {
+      job: jobId,
       node: store.nodeId,
       user: store.userId,
+      stdout, stderr, error,
     });
   });
 }
