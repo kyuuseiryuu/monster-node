@@ -94,6 +94,7 @@ export const uploadRunningProcess = cron.schedule(getCronExpresion(1), async () 
   store.invoker.invoke(WebSocketMessageType.PROCESS, {
     node: store.nodeId,
     user: store.userId,
+    self: process.pid,
     data: JSON.stringify(processes),
   });
 }, { scheduled: false });
